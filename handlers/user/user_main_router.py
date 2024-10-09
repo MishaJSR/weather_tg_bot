@@ -3,6 +3,7 @@ from aiogram.enums import ParseMode
 from aiogram.filters import CommandStart, Command, StateFilter
 from aiogram import types, Router, F
 from aiogram.fsm.context import FSMContext
+from urllib3 import HTTPConnectionPool
 
 user_main_router = Router()
 
@@ -12,8 +13,12 @@ async def user_start(message: types.Message, state: FSMContext):
     username = "@"
     if message.from_user.username:
         username = message.from_user.username
-    response = requests.post(f"http://127.0.0.1:8000/user/"
-                             f"check_or_create?tg_user_id={message.from_user.id}&user_tag={username}")
+    try:
+        response = requests.post(f"http://127.0.0.1:8000/user/"
+                                 f"check_or_create?tg_user_id={message.from_user.id}&user_tag={username}")
+    except requests.exceptions.ConnectionError:
+        await message.answer(f"Ошибка подключения к серверу")
+        return
     await message.answer(f"Привет\n"
                          f"Напиши /weather <Город> чтобы узнать погоду")
 
@@ -23,7 +28,11 @@ async def user_start(message: types.Message, state: FSMContext):
     try:
         city = message.text.replace("/weather", "")[1:]
         url = f"http://127.0.0.1:8000/get_weather/get_weather_by_id?user_tg_id={message.from_user.id}&city={city}"
-        response = requests.post(url)
+        try:
+            response = requests.post(url)
+        except requests.exceptions.ConnectionError:
+            await message.answer(f"Ошибка подключения к серверу")
+            return
         data = response.json()
         if data.get("status_code") == 400:
             detail = data["detail"][0]
