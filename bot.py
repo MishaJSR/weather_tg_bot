@@ -3,17 +3,12 @@ import asyncio
 
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
-from aiogram.types import BotCommandScopeAllPrivateChats
+from aiogram.types import BotCommandScopeAllPrivateChats, BotCommand
 from aiogram.fsm.storage.redis import RedisStorage, DefaultKeyBuilder
 import betterlogging as bl
 
 from env_config import load_config
 from handlers.user.user_main_router import user_main_router
-from handlers.admin.admin_main_router import admin_private_router
-from utils.common.bot_cmd_list import private
-from middlewares.db import DataBaseSession
-from database.engine import async_session_maker
-from utils.spam_def.spam_send import send_remind
 
 
 def get_storage(config):
@@ -51,14 +46,13 @@ async def main():
 
     bot = Bot(token=config.tg_bot.token)
     dp = Dispatcher(storage=storage)
-    dp.include_routers(admin_private_router, user_main_router)
+    dp.include_routers(user_main_router)
 
     dp.startup.register(on_startup)
     dp.shutdown.register(on_shutdown)
-    dp.update.middleware(DataBaseSession(session_pool=async_session_maker))
-    asyncio.create_task(send_remind(bot))
     await bot.delete_webhook(drop_pending_updates=True)
-    await bot.set_my_commands(commands=private, scope=BotCommandScopeAllPrivateChats())
+    await bot.set_my_commands(commands=[BotCommand(command='start', description='Запустить бота')],
+                              scope=BotCommandScopeAllPrivateChats())
     await dp.start_polling(bot)
 
 
